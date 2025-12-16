@@ -36,13 +36,19 @@ def fetch_news(ticker_symbol):
         cleaned_news = []
         for item in results:
             # DDGS returns: {'title':..., 'body':..., 'date':..., 'image':..., 'source':..., 'url':...}
+            title = item.get('title')
+            link = item.get('url')
+            
+            if not title or not link:
+                continue
+                
             cleaned_news.append({
-                'title': item.get('title'),
-                'link': item.get('url'),
-                'publisher': item.get('source'),
-                'publishTime': item.get('date'),
+                'title': title,
+                'link': link,
+                'publisher': item.get('source', 'Unknown Source'),
+                'publishTime': item.get('date', 'Recent'),
                 'thumbnail': item.get('image'),
-                'summary': item.get('body') # Extract summary if available
+                'summary': item.get('body', '') 
             })
             
         return cleaned_news

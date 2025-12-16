@@ -8,7 +8,7 @@ A powerful, deployment-ready Streamlit application designed for investors to tra
 *   **Rich News Feed**: Aggregated news articles with thumbnails, publishers, and timestamps, cleanly presented in a card layout.
 *   **SEC Filings Integration**: Automatic fetching of the latest 8-K and 10-K filings directly from SEC EDGAR RSS feeds.
 *   **AI-Powered Analysis**:
-    *   Integrates **Google Gemini 1.5 Flash** (via `gemini-flash-latest`) to analyze legal documents.
+    *   Integrates **Google Gemini Flash** (via `gemini-flash-latest`) to analyze legal documents.
     *   Provides a **Sentiment Score (0-10)**.
     *   Classifies impact as **Bullish**, **Bearish**, or **Neutral**.
     *   Generates a concise **Executive Summary** and reasoning for the classification.
