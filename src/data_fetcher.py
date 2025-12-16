@@ -18,26 +18,38 @@ def fetch_stock_info(ticker_symbol):
     ticker = yf.Ticker(ticker_symbol)
     return ticker.info
 
+from duckduckgo_search import DDGS
+
 def fetch_news(ticker_symbol):
     """
-    Fetches latest news for the stock using yfinance (which scrapes Yahoo Finance).
+    Fetches latest news for the stock using DuckDuckGo News Search.
+    This provides a Google News-like experience with reliable links.
     """
-    ticker = yf.Ticker(ticker_symbol)
-    news = ticker.news
-    
-    # yfinance news structure can be nested under 'content' key
-    cleaned_news = []
-    for item in news:
-        content = item.get('content', item) # Fallback if not nested
-        cleaned_news.append({
-            'title': content.get('title'),
-            'link': content.get('clickThroughUrl', {}).get('url'),
-            'publisher': content.get('provider', {}).get('displayName'),
-            'publishTime': content.get('pubDate'), # This is ISO format string
-            'thumbnail': content.get('thumbnail', {}).get('resolutions', [{}])[0].get('url') if content.get('thumbnail') else None
-        })
+    try:
+        # Search for "Ticker Stock News"
+        query = f"{ticker_symbol} stock news"
         
-    return cleaned_news
+        with DDGS() as ddgs:
+            # get 10 news results
+            results = list(ddgs.news(query, max_results=10))
+            
+        cleaned_news = []
+        for item in results:
+            # DDGS returns: {'title':..., 'body':..., 'date':..., 'image':..., 'source':..., 'url':...}
+            cleaned_news.append({
+                'title': item.get('title'),
+                'link': item.get('url'),
+                'publisher': item.get('source'),
+                'publishTime': item.get('date'),
+                'thumbnail': item.get('image'),
+                'summary': item.get('body') # Extract summary if available
+            })
+            
+        return cleaned_news
+        
+    except Exception as e:
+        print(f"Error fetching news from DDG: {e}")
+        return []
 
 def fetch_sec_filings(ticker_symbol):
     """
