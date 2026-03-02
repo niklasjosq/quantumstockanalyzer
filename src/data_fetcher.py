@@ -1,24 +1,72 @@
-import yfinance as yf
 import feedparser
 import pandas as pd
-from datetime import datetime
+import requests
+import yfinance as yf
+
+try:
+    from ddgs import DDGS  # Preferred package name.
+except ImportError:
+    DDGS = None
 
 def fetch_stock_history(ticker_symbol, period="1y"):
     """
     Fetches historical stock data using yfinance.
     """
-    ticker = yf.Ticker(ticker_symbol)
-    hist = ticker.history(period=period)
-    return hist
+    try:
+        ticker = yf.Ticker(ticker_symbol)
+        return ticker.history(period=period)
+    except Exception as e:
+        print(f"Error fetching stock history for {ticker_symbol}: {e}")
+        return pd.DataFrame()
 
 def fetch_stock_info(ticker_symbol):
     """
     Fetches basic stock info.
     """
-    ticker = yf.Ticker(ticker_symbol)
-    return ticker.info
+    try:
+        ticker = yf.Ticker(ticker_symbol)
+        return ticker.info
+    except Exception as e:
+        print(f"Error fetching stock info for {ticker_symbol}: {e}")
+        return {}
 
-from duckduckgo_search import DDGS
+
+def _fetch_news_from_yfinance(ticker_symbol):
+    """
+    Fallback source for news if DDGS is unavailable or returns no data.
+    """
+    try:
+        ticker = yf.Ticker(ticker_symbol)
+        raw_news = ticker.news or []
+    except Exception as e:
+        print(f"Error fetching fallback Yahoo Finance news: {e}")
+        return []
+
+    cleaned_news = []
+    for item in raw_news:
+        content = item.get("content", {})
+        title = content.get("title")
+        link_obj = content.get("clickThroughUrl") or content.get("canonicalUrl") or {}
+        link = link_obj.get("url")
+
+        if not title or not link:
+            continue
+
+        provider = content.get("provider") or {}
+        thumbnail = content.get("thumbnail") or {}
+
+        cleaned_news.append(
+            {
+                "title": title,
+                "link": link,
+                "publisher": provider.get("displayName", "Yahoo Finance"),
+                "publishTime": content.get("pubDate", "Recent"),
+                "thumbnail": thumbnail.get("originalUrl"),
+                "summary": content.get("summary", ""),
+            }
+        )
+
+    return cleaned_news
 
 def fetch_news(ticker_symbol):
     """
@@ -26,6 +74,9 @@ def fetch_news(ticker_symbol):
     This provides a Google News-like experience with reliable links.
     """
     try:
+        if DDGS is None:
+            return _fetch_news_from_yfinance(ticker_symbol)
+
         # Search for "Ticker Stock News"
         query = f"{ticker_symbol} stock news"
         
@@ -51,11 +102,13 @@ def fetch_news(ticker_symbol):
                 'summary': item.get('body', '') 
             })
             
-        return cleaned_news
+        if cleaned_news:
+            return cleaned_news
         
     except Exception as e:
         print(f"Error fetching news from DDG: {e}")
-        return []
+
+    return _fetch_news_from_yfinance(ticker_symbol)
 
 def fetch_sec_filings(ticker_symbol):
     """
@@ -73,8 +126,11 @@ def fetch_sec_filings(ticker_symbol):
     # Actually feedparser downloads content itself. But SEC is strict about User-Agent.
     # We might need to fetch with requests first.
     
-    import requests
-    response = requests.get(url, headers=headers)
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+    except requests.RequestException as e:
+        print(f"Error fetching SEC filings for {ticker_symbol}: {e}")
+        return []
     
     if response.status_code != 200:
         return []
@@ -84,11 +140,11 @@ def fetch_sec_filings(ticker_symbol):
     filings = []
     for entry in feed.entries:
         filings.append({
-            'title': entry.title,
-            'link': entry.link,
-            'summary': entry.summary,
-            'updated': entry.updated,
-            'category': entry.category if hasattr(entry, 'category') else 'N/A'
+            'title': entry.get("title", "Untitled Filing"),
+            'link': entry.get("link", ""),
+            'summary': entry.get("summary", "No summary available."),
+            'updated': entry.get("updated", "N/A"),
+            'category': entry.get("category", "N/A")
         })
     
     return filings

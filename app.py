@@ -1,8 +1,20 @@
 import streamlit as st
-import pandas as pd
 import plotly.graph_objects as go
 from src.data_fetcher import fetch_stock_history, fetch_stock_info, fetch_news, fetch_sec_filings
 from src.analyzer import analyze_content
+
+
+def _format_currency(value):
+    if isinstance(value, (int, float)):
+        return f"${value:,.2f}"
+    return "N/A"
+
+
+def _format_market_cap(value):
+    if not isinstance(value, (int, float)):
+        return "N/A"
+    return f"${value:,.0f}"
+
 
 # Page Config
 st.set_page_config(page_title="Stock News Feeder", layout="wide", page_icon="📈")
@@ -55,23 +67,32 @@ with tab1:
         try:
             hist = fetch_stock_history(selected_ticker, period=period)
             info = fetch_stock_info(selected_ticker)
+            if not isinstance(info, dict):
+                info = {}
             
             # Key Stats
             col1, col2, col3, col4 = st.columns(4)
-            current_price = info.get('currentPrice', info.get('previousClose', 'N/A'))
-            col1.metric("Current Price", f"${current_price}")
-            col2.metric("Market Cap", f"${info.get('marketCap', 'N/A')}")
-            col3.metric("52W High", f"${info.get('fiftyTwoWeekHigh', 'N/A')}")
-            col4.metric("52W Low", f"${info.get('fiftyTwoWeekLow', 'N/A')}")
-            
-            # Chart
-            fig = go.Figure(data=[go.Candlestick(x=hist.index,
-                            open=hist['Open'],
-                            high=hist['High'],
-                            low=hist['Low'],
-                            close=hist['Close'])])
-            fig.update_layout(template="plotly_dark", height=500)
-            st.plotly_chart(fig, use_container_width=True)
+            current_price = (
+                info.get("currentPrice")
+                or info.get("regularMarketPrice")
+                or info.get("previousClose")
+            )
+            col1.metric("Current Price", _format_currency(current_price))
+            col2.metric("Market Cap", _format_market_cap(info.get("marketCap")))
+            col3.metric("52W High", _format_currency(info.get("fiftyTwoWeekHigh")))
+            col4.metric("52W Low", _format_currency(info.get("fiftyTwoWeekLow")))
+
+            if hist.empty:
+                st.warning("No historical data returned for this ticker/period.")
+            else:
+                # Chart
+                fig = go.Figure(data=[go.Candlestick(x=hist.index,
+                                open=hist['Open'],
+                                high=hist['High'],
+                                low=hist['Low'],
+                                close=hist['Close'])])
+                fig.update_layout(template="plotly_dark", height=500)
+                st.plotly_chart(fig, use_container_width=True)
             
             st.caption(info.get('longBusinessSummary', 'No summary available.'))
             

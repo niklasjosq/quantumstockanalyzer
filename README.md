@@ -43,7 +43,7 @@ A powerful, deployment-ready Streamlit application designed for investors to tra
 2.  **Run the Application**:
     `uv` handles virtual environment creation and dependency installation automatically.
     ```bash
-    uv run streamlit run app.py
+   uv run streamlit run app.py 
     ```
 
 3.  **Access the App**:
